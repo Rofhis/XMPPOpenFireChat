@@ -74,13 +74,14 @@ public class MainActivity extends ActionBarActivity {
     @Override
     public void onResume(){
 
-
-
         super.onResume();
+
+        //Connect and login to the server
         if(!mConnection.isConnected()) {
             new LoginTask(mConnection).execute(SERVER_ADDRESS, SERVER_NAME, USER_NAME, USER_PASSWORD);
         }
 
+        //Get incoming messages
         ChatManager chatManager = ChatManager.getInstanceFor(mConnection);
         chatManager.addChatListener(new ChatManagerListener() {
             @Override
@@ -94,22 +95,6 @@ public class MainActivity extends ActionBarActivity {
 
         });
 
-
-
-//
-//        new IncomingMessageTask(new CallBackTask() {
-//
-//            @Override
-//            public void runCallback(Chat chat){
-//                if(chat != null){
-//                    handleMessage(chat);
-//                    Toast.makeText(context, "Messages found", Toast.LENGTH_SHORT).show();
-//                }else{
-//                    Toast.makeText(context, "No messages found", Toast.LENGTH_SHORT).show();
-//                }
-//            }
-//
-//        }, mConnection).execute();
 
     }
 
