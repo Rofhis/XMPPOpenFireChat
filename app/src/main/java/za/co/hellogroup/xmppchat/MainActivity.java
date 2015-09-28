@@ -1,5 +1,6 @@
 package za.co.hellogroup.xmppchat;
 
+import android.content.Context;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -13,6 +14,8 @@ import android.widget.Toast;
 
 import org.jivesoftware.smack.ConnectionConfiguration;
 import org.jivesoftware.smack.chat.Chat;
+import org.jivesoftware.smack.chat.ChatManager;
+import org.jivesoftware.smack.chat.ChatManagerListener;
 import org.jivesoftware.smack.chat.ChatMessageListener;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.tcp.XMPPTCPConnection;
@@ -21,16 +24,16 @@ import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
 
 public class MainActivity extends ActionBarActivity {
 
-    private final String  SERVER_ADDRESS = "192.168.168.37";
+    private final String  SERVER_ADDRESS = "41.185.29.87";
     private final int  SERVER_PORT = 5222;
-    private final String  SERVER_NAME = "localhost";
+    private final String  SERVER_NAME = "ufree.com";
     private final String  USER_NAME = "rofhiwa";
     private final String  USER_PASSWORD = "rofhiwa";
 
     private EditText message_to, message_body;
     private Button sendBtn;
     private TextView showMessage;
-
+    private Context context;
     private XMPPTCPConnection mConnection;
 
     @Override
@@ -42,8 +45,9 @@ public class MainActivity extends ActionBarActivity {
         message_body = (EditText) findViewById(R.id.message_body);
         sendBtn = (Button) findViewById(R.id.sendButton);
         showMessage = (TextView) findViewById(R.id.showMessage);
+        context = this;
 
-        XMPPTCPConnectionConfiguration.Builder connconfig = XMPPTCPConnectionConfiguration.builder(); //Crash here, because the rest of codes are commented out below - if line this is commented out no crash takes place
+        XMPPTCPConnectionConfiguration.Builder connconfig = XMPPTCPConnectionConfiguration.builder();
         connconfig.setSecurityMode(ConnectionConfiguration.SecurityMode.disabled);
         connconfig.setUsernameAndPassword(USER_NAME + "@" + SERVER_NAME, USER_PASSWORD);
         connconfig.setServiceName(SERVER_NAME);
@@ -70,27 +74,48 @@ public class MainActivity extends ActionBarActivity {
     @Override
     public void onResume(){
 
+
+
         super.onResume();
         if(!mConnection.isConnected()) {
             new LoginTask(mConnection).execute(SERVER_ADDRESS, SERVER_NAME, USER_NAME, USER_PASSWORD);
         }
 
-        new IncomingMessageTask(new CallBackTask() {
-
+        ChatManager chatManager = ChatManager.getInstanceFor(mConnection);
+        chatManager.addChatListener(new ChatManagerListener() {
             @Override
-            public void runCallback(Chat chat){
-                if(chat != null){
+            public void chatCreated(Chat chat, boolean createdLocally) {
+
+                if (chat != null && !createdLocally) {
                     handleMessage(chat);
                 }
+
             }
 
-        }, mConnection).execute();
+        });
+
+
+
+//
+//        new IncomingMessageTask(new CallBackTask() {
+//
+//            @Override
+//            public void runCallback(Chat chat){
+//                if(chat != null){
+//                    handleMessage(chat);
+//                    Toast.makeText(context, "Messages found", Toast.LENGTH_SHORT).show();
+//                }else{
+//                    Toast.makeText(context, "No messages found", Toast.LENGTH_SHORT).show();
+//                }
+//            }
+//
+//        }, mConnection).execute();
 
     }
 
 
     void handleMessage(Chat chat){
-
+        Log.i("Handle messages", "Got new messages");
         chat.addMessageListener(new ChatMessageListener() {
             @Override
             public void processMessage(Chat chat, Message message) {
@@ -98,8 +123,18 @@ public class MainActivity extends ActionBarActivity {
                 Log.i("Receiver", message.getTo());
                 Log.i("Body", message.getBody());
 
-                String[] sender = message.getFrom().split("@");
-                showMessage.setText(sender[0] + " - " + message.getBody());
+                final String[] sender = message.getFrom().split("@");
+                final String messageBody = message.getBody();
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        showMessage.append(sender[0] + " - " + messageBody + "\n");
+                    }
+                });
+
+
+
             }
         });
 
