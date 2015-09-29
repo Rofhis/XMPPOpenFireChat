@@ -13,6 +13,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import org.jivesoftware.smack.ConnectionConfiguration;
+import org.jivesoftware.smack.SmackException;
+import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.chat.Chat;
 import org.jivesoftware.smack.chat.ChatManager;
 import org.jivesoftware.smack.chat.ChatManagerListener;
@@ -20,14 +22,18 @@ import org.jivesoftware.smack.chat.ChatMessageListener;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.tcp.XMPPTCPConnection;
 import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
+import org.jivesoftware.smackx.muc.MultiUserChat;
+import org.jivesoftware.smackx.muc.MultiUserChatManager;
+import org.jivesoftware.smackx.xdata.Form;
+import org.jivesoftware.smackx.xdata.packet.DataForm;
 
 
 public class MainActivity extends ActionBarActivity {
 
-    private final String  SERVER_ADDRESS = "41.185.29.87";
+    private final String  SERVER_ADDRESS = "154.0.170.216";
     private final int  SERVER_PORT = 5222;
-    private final String  SERVER_NAME = "ufree.com";
-    private final String  USER_NAME = "rofhiwa";
+    private final String  SERVER_NAME = "phonesingers.com";
+    private final String  USER_NAME = "admin";
     private final String  USER_PASSWORD = "rofhiwa";
 
     private EditText message_to, message_body;
@@ -64,7 +70,9 @@ public class MainActivity extends ActionBarActivity {
                 String to = message_to.getText().toString();
                 String body = message_body.getText().toString();
 
-                sendMessage(to, body);
+                createRoom(to);
+
+//                sendMessage(to, body);
 
             }
         });
@@ -104,24 +112,45 @@ public class MainActivity extends ActionBarActivity {
         chat.addMessageListener(new ChatMessageListener() {
             @Override
             public void processMessage(Chat chat, Message message) {
-                Log.i("Sender", message.getFrom());
-                Log.i("Receiver", message.getTo());
-                Log.i("Body", message.getBody());
+            Log.i("Sender", message.getFrom());
+            Log.i("Receiver", message.getTo());
+            Log.i("Body", message.getBody());
 
-                final String[] sender = message.getFrom().split("@");
-                final String messageBody = message.getBody();
+            final String[] sender = message.getFrom().split("@");
+            final String messageBody = message.getBody();
 
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        showMessage.append(sender[0] + " - " + messageBody + "\n");
-                    }
-                });
-
-
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    showMessage.append(sender[0] + " - " + messageBody + "\n");
+                }
+            });
 
             }
         });
+
+    }
+
+
+    //Create chatroom
+    void createRoom(String room){
+
+        MultiUserChatManager chatroomManager = MultiUserChatManager.getInstanceFor(mConnection);
+        MultiUserChat multiUserChat = chatroomManager.getMultiUserChat(room +"@conference." + SERVER_NAME);
+
+        try{
+            multiUserChat.create(room);
+            multiUserChat.sendConfigurationForm(new Form(DataForm.Type.submit));
+            multiUserChat.join(room);
+            Toast.makeText(context, "Chatroom " + room + " created", Toast.LENGTH_SHORT).show();
+        }
+        catch (SmackException | XMPPException.XMPPErrorException e){
+            e.printStackTrace();
+            Log.i("Create Chatroom failed", "Chatroom failed: " + e.getMessage());
+        }
+
+
+
 
     }
 

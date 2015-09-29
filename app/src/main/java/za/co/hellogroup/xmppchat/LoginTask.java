@@ -44,7 +44,6 @@ public class LoginTask extends AsyncTask<String, Void, String> {
             Log.i("Error Connect", "Connect error = " + e.getMessage());
         }
 
-        // Most servers require you to login before performing other tasks.
         try {
             mConnection.login(userName, strPassword);
             Presence presence = new Presence(Presence.Type.available);
