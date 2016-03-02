@@ -1,190 +1,97 @@
 package za.co.hellogroup.xmppchat;
 
+import android.app.Activity;
+import android.app.Application;
 import android.content.Context;
-import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
-import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.view.View;
+import android.support.v4.app.LoaderManager;
+import android.support.v4.content.AsyncTaskLoader;
+import android.support.v4.content.Loader;
+import android.support.v7.app.AppCompatActivity;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import org.jivesoftware.smack.ConnectionConfiguration;
+import com.bua.xmppasmack.asmack.XMPPServer;
+
 import org.jivesoftware.smack.SmackException;
-import org.jivesoftware.smack.XMPPException;
-import org.jivesoftware.smack.chat.Chat;
-import org.jivesoftware.smack.chat.ChatManager;
-import org.jivesoftware.smack.chat.ChatManagerListener;
-import org.jivesoftware.smack.chat.ChatMessageListener;
-import org.jivesoftware.smack.packet.Message;
-import org.jivesoftware.smack.tcp.XMPPTCPConnection;
-import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
-import org.jivesoftware.smackx.muc.MultiUserChat;
-import org.jivesoftware.smackx.muc.MultiUserChatManager;
-import org.jivesoftware.smackx.xdata.Form;
-import org.jivesoftware.smackx.xdata.packet.DataForm;
+
+import java.util.Random;
 
 
-public class MainActivity extends ActionBarActivity {
-
-    private final String  SERVER_ADDRESS = "154.0.170.216";
-    private final int  SERVER_PORT = 5222;
-    private final String  SERVER_NAME = "phonesingers.com";
-    private final String  USER_NAME = "admin";
-    private final String  USER_PASSWORD = "rofhiwa";
-
+public class MainActivity extends AppCompatActivity  implements LoaderManager.LoaderCallbacks<String>{
     private EditText message_to, message_body;
     private Button sendBtn;
     private TextView showMessage;
     private Context context;
-    private XMPPTCPConnection mConnection;
+    private MyApplication appValue;
+    Bundle data;
+    Loader<String> loaderTask;
+    Random rand;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        message_to = (EditText) findViewById(R.id.message_to);
+        message_to   = (EditText) findViewById(R.id.message_to);
         message_body = (EditText) findViewById(R.id.message_body);
-        sendBtn = (Button) findViewById(R.id.sendButton);
-        showMessage = (TextView) findViewById(R.id.showMessage);
-        context = this;
+        sendBtn      = (Button) findViewById(R.id.sendButton);
+        showMessage  = (TextView) findViewById(R.id.showMessage);
+        context      = this;
+        appValue     = (MyApplication) getApplicationContext();
+        data         = new Bundle();
 
-        XMPPTCPConnectionConfiguration.Builder connconfig = XMPPTCPConnectionConfiguration.builder();
-        connconfig.setSecurityMode(ConnectionConfiguration.SecurityMode.disabled);
-        connconfig.setUsernameAndPassword(USER_NAME + "@" + SERVER_NAME, USER_PASSWORD);
-        connconfig.setServiceName(SERVER_NAME);
-        connconfig.setHost(SERVER_ADDRESS);
-        connconfig.setPort(SERVER_PORT);
-        connconfig.setDebuggerEnabled(true);
+        data.putString("serverAddress", appValue.getServerAddress());
+        data.putInt("serverPort", appValue.getServerPort());
+        data.putString("serverName", appValue.getServerName());
+        data.putString("username", appValue.getUserName());
+        data.putString("password", appValue.getUserPassword());
+        data.putString("mainUsername", "rofhiwa");
 
-        mConnection = new XMPPTCPConnection(connconfig.build());
-
-        sendBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-
-                String to = message_to.getText().toString();
-                String body = message_body.getText().toString();
-
-                createRoom(to);
-
-//                sendMessage(to, body);
-
-            }
+        sendBtn.setOnClickListener(v -> {
+            String to = message_to.getText().toString();
+            String body = message_body.getText().toString();
+            data.putString("messageTo", to);
+            data.putString("message", body);
+            loaderTask = new MessageTask(this, data);
+            startAsyncLoader(getLoaderID());
+            showMessage.append(appValue.getTime() + ": Me - " + body + "\n");
         });
+    }
 
+    public int getLoaderID() {
+        rand = new Random();
+        return rand.nextInt((999999999) + 1);
+    }
+
+
+    void startAsyncLoader(int id) {
+        getSupportLoaderManager().initLoader(id, null, this).forceLoad();
     }
 
     @Override
     public void onResume(){
-
         super.onResume();
-
-        //Connect and login to the server
-        if(!mConnection.isConnected()) {
-            new LoginTask(mConnection).execute(SERVER_ADDRESS, SERVER_NAME, USER_NAME, USER_PASSWORD);
-        }
-
-        //Get incoming messages
-        ChatManager chatManager = ChatManager.getInstanceFor(mConnection);
-        chatManager.addChatListener(new ChatManagerListener() {
-            @Override
-            public void chatCreated(Chat chat, boolean createdLocally) {
-
-                if (chat != null && !createdLocally) {
-                    handleMessage(chat);
-                }
-
-            }
-
-        });
-
-
-    }
-
-
-    void handleMessage(Chat chat){
-        Log.i("Handle messages", "Got new messages");
-        chat.addMessageListener(new ChatMessageListener() {
-            @Override
-            public void processMessage(Chat chat, Message message) {
-            Log.i("Sender", message.getFrom());
-            Log.i("Receiver", message.getTo());
-            Log.i("Body", message.getBody());
-
-            final String[] sender = message.getFrom().split("@");
-            final String messageBody = message.getBody();
-
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    showMessage.append(sender[0] + " - " + messageBody + "\n");
-                }
-            });
-
-            }
-        });
-
-    }
-
-
-    //Create chatroom
-    void createRoom(String room){
-
-        MultiUserChatManager chatroomManager = MultiUserChatManager.getInstanceFor(mConnection);
-        MultiUserChat multiUserChat = chatroomManager.getMultiUserChat(room +"@conference." + SERVER_NAME);
-
-        try{
-            multiUserChat.create(room);
-            multiUserChat.sendConfigurationForm(new Form(DataForm.Type.submit));
-            multiUserChat.join(room);
-            Toast.makeText(context, "Chatroom " + room + " created", Toast.LENGTH_SHORT).show();
-        }
-        catch (SmackException | XMPPException.XMPPErrorException e){
-            e.printStackTrace();
-            Log.i("Create Chatroom failed", "Chatroom failed: " + e.getMessage());
-        }
-
-
-
-
-    }
-
-
-
-
-    //Send message
-    void sendMessage(String to, String message){
-
-        new SendMessageTask(mConnection).execute(to + "@" + SERVER_NAME, message);
-        Toast.makeText(this, "Message sent", Toast.LENGTH_SHORT).show();
-
-    }
-
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
+        XMPPServer.setContext(this);
+        XMPPServer.setTextView(showMessage);
+        loaderTask = new ConnectTask(this, data);
+        startAsyncLoader(0);
     }
 
     @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
+    public Loader<String> onCreateLoader(int id, Bundle bundle) {
+        return loaderTask;
+    }
 
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
+    @Override
+    public void onLoadFinished(Loader<String> loader, String data) {
+        Toast.makeText(this, loader.getId() + " - " + data, Toast.LENGTH_SHORT).show();
+    }
 
-        return super.onOptionsItemSelected(item);
+    @Override
+    public void onLoaderReset(Loader<String> loader) {
+
     }
 }
